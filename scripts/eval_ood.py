@@ -22,6 +22,9 @@ from openood.networks.csi_net import CSINet
 from openood.networks.udg_net import UDGNet
 from openood.networks.cider_net import CIDERNet
 from openood.networks.npos_net import NPOSNet
+from openood.networks.palm_net import PALMNet
+from openood.networks.t2fnorm_net import T2FNormNet
+from openood.networks.ascood_net import ASCOODNet
 
 
 def update(d, u):
@@ -45,6 +48,10 @@ parser.add_argument('--batch-size', type=int, default=200)
 parser.add_argument('--save-csv', action='store_true')
 parser.add_argument('--save-score', action='store_true')
 parser.add_argument('--fsood', action='store_true')
+parser.add_argument('--wrapper-net',
+                    type=str,
+                    default=None,
+                    choices=['ASCOODNet'])
 args = parser.parse_args()
 
 root = args.root
@@ -108,7 +115,7 @@ for subfolder in sorted(glob(os.path.join(root, 's*'))):
         net = UDGNet(backbone=backbone,
                      num_classes=num_classes,
                      num_clusters=1000)
-    elif postprocessor_name == 'cider':
+    elif postprocessor_name in ['cider', 'reweightood']:
         backbone = model_arch(num_classes=num_classes)
         net = CIDERNet(backbone,
                        head='mlp',
@@ -120,8 +127,21 @@ for subfolder in sorted(glob(os.path.join(root, 's*'))):
                       head='mlp',
                       feat_dim=128,
                       num_classes=num_classes)
+    elif postprocessor_name == 'palm':
+        backbone = model_arch(num_classes=num_classes)
+        net = PALMNet(backbone,
+                      head='mlp',
+                      feat_dim=128,
+                      num_classes=num_classes)
+        postprocessor_name = 'mds'
+    elif postprocessor_name == 't2fnorm':
+        backbone = model_arch(num_classes=num_classes)
+        net = T2FNormNet(backbone=backbone, num_classes=num_classes)
     else:
         net = model_arch(num_classes=num_classes)
+
+    if args.wrapper_net is not None:
+        net = eval(args.wrapper_net)(backbone=net)
 
     net.load_state_dict(
         torch.load(os.path.join(subfolder, 'best.ckpt'), map_location='cpu'))

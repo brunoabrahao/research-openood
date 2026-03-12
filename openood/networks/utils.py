@@ -36,22 +36,15 @@ from .udg_net import UDGNet
 from .vit_b_16 import ViT_B_16
 from .wrn import WideResNet
 from .rts_net import RTSNet
+from .palm_net import PALMNet
+from .ascood_net import ASCOODNet
 
 
 def get_network(network_config):
 
     num_classes = network_config.num_classes
 
-    if hasattr(network_config, 'modification') and network_config.modification == 't2fnorm':
-        network_config.modification = 'none'
-        backbone = get_network(network_config)
-        backbone.fc = nn.Identity()
-
-        net = T2FNormNet(backbone=backbone,
-                         tau=network_config.tau,
-                         num_classes=num_classes)
-
-    elif network_config.name == 'resnet18_32x32':
+    if network_config.name == 'resnet18_32x32':
         net = ResNet18_32x32(num_classes=num_classes)
 
     elif network_config.name == 'resnet18_256x256':
@@ -125,6 +118,26 @@ def get_network(network_config):
                        feat_dim=network_config.feat_dim,
                        num_classes=num_classes)
 
+    elif network_config.name == 't2fnorm_net':
+        network_config.backbone.num_gpus = 1
+        backbone = get_network(network_config.backbone)
+
+        net = T2FNormNet(backbone=backbone, num_classes=num_classes)
+
+    elif network_config.name == 'palm_net':
+        # don't wrap ddp here cuz we need to modify
+        # backbone
+        network_config.backbone.num_gpus = 1
+        backbone = get_network(network_config.backbone)
+        # remove fc otherwise ddp will
+        # report unused params
+        backbone.fc = nn.Identity()
+
+        net = PALMNet(backbone=backbone,
+                      head=network_config.head,
+                      feat_dim=network_config.feat_dim,
+                      num_classes=num_classes)
+
     elif network_config.name == 'npos_net':
         # don't wrap ddp here cuz we need to modify
         # backbone
@@ -138,6 +151,11 @@ def get_network(network_config):
                       head=network_config.head,
                       feat_dim=network_config.feat_dim,
                       num_classes=num_classes)
+
+    elif network_config.name == 'ascood_net':
+        network_config.backbone.num_gpus = 1
+        backbone = get_network(network_config.backbone)
+        net = ASCOODNet(backbone=backbone)
 
     elif network_config.name == 'rts_net':
         backbone = get_network(network_config.backbone)
