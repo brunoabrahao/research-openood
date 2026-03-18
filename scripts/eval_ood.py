@@ -14,7 +14,8 @@ import torch.nn.functional as F
 
 from openood.evaluation_api import Evaluator
 
-from openood.networks import ResNet18_32x32, ResNet18_224x224, ResNet50
+from openood.networks import (ResNet18_32x32, ResNet18_224x224, ResNet50,
+                              WideResNet, ViT_B_16)
 from openood.networks.conf_branch_net import ConfBranchNet
 from openood.networks.godin_net import GodinNet
 from openood.networks.rot_net import RotNet
@@ -25,6 +26,7 @@ from openood.networks.npos_net import NPOSNet
 from openood.networks.palm_net import PALMNet
 from openood.networks.t2fnorm_net import T2FNormNet
 from openood.networks.ascood_net import ASCOODNet
+from openood.networks.mcd_net import MCDNet
 
 
 def update(d, u):
@@ -48,6 +50,8 @@ parser.add_argument('--batch-size', type=int, default=200)
 parser.add_argument('--save-csv', action='store_true')
 parser.add_argument('--save-score', action='store_true')
 parser.add_argument('--fsood', action='store_true')
+parser.add_argument('--backbone', type=str, default='resnet18',
+                    choices=['resnet18', 'resnet50', 'vit', 'wrn'])
 parser.add_argument('--wrapper-net',
                     type=str,
                     default=None,
@@ -61,17 +65,55 @@ root = args.root
 postprocessor_name = args.postprocessor
 
 NUM_CLASSES = {'cifar10': 10, 'cifar100': 100, 'imagenet200': 200}
+
+# Backbone → dataset → model constructor
 MODEL = {
-    'cifar10': ResNet18_32x32,
-    'cifar100': ResNet18_32x32,
-    'imagenet200': ResNet18_224x224,
+    'resnet18': {
+        'cifar10': ResNet18_32x32,
+        'cifar100': ResNet18_32x32,
+        'imagenet200': ResNet18_224x224,
+    },
+    'resnet50': {
+        'cifar10': ResNet50,
+        'cifar100': ResNet50,
+        'imagenet200': ResNet50,
+    },
+    'vit': {
+        'cifar10': lambda num_classes: ViT_B_16(num_classes=num_classes),
+        'cifar100': lambda num_classes: ViT_B_16(num_classes=num_classes),
+        'imagenet200': lambda num_classes: ViT_B_16(num_classes=num_classes),
+    },
+    'wrn': {
+        'cifar10': lambda num_classes: WideResNet(
+            depth=28, num_classes=num_classes, widen_factor=10),
+        'cifar100': lambda num_classes: WideResNet(
+            depth=28, num_classes=num_classes, widen_factor=10),
+        'imagenet200': lambda num_classes: WideResNet(
+            depth=28, num_classes=num_classes, widen_factor=10),
+    },
 }
 
 try:
     num_classes = NUM_CLASSES[args.id_data]
-    model_arch = MODEL[args.id_data]
+    model_arch = MODEL[args.backbone][args.id_data]
 except KeyError:
-    raise NotImplementedError(f'ID dataset {args.id_data} is not supported.')
+    raise NotImplementedError(
+        f'Backbone {args.backbone} / dataset {args.id_data} not supported.')
+
+# Cross-resolution combos: backbones trained at 224x224 on CIFAR datasets
+# need imagenet-style preprocessing instead of CIFAR's default 32x32.
+UPSCALED_COMBOS = {
+    ('resnet50', 'cifar10'), ('resnet50', 'cifar100'),
+    ('vit', 'cifar10'), ('vit', 'cifar100'),
+}
+if (args.backbone, args.id_data) in UPSCALED_COMBOS:
+    from openood.evaluation_api.preprocessor import (
+        get_default_preprocessor as _get_pp)
+    # Use imagenet200 preprocessing (256 pre_size, 224 img_size, imagenet norm)
+    custom_preprocessor = _get_pp('imagenet200')
+    print(f'[eval_ood] Using 224x224 preprocessor for {args.backbone}/{args.id_data}')
+else:
+    custom_preprocessor = None
 
 # assume that the root folder contains subfolders each corresponding to
 # a training run, e.g., s0, s1, s2
@@ -137,6 +179,9 @@ for subfolder in sorted(glob(os.path.join(root, 's*'))):
     elif postprocessor_name == 't2fnorm':
         backbone = model_arch(num_classes=num_classes)
         net = T2FNormNet(backbone=backbone, num_classes=num_classes)
+    elif postprocessor_name == 'mcd':
+        backbone = model_arch(num_classes=num_classes)
+        net = MCDNet(backbone=backbone, num_classes=num_classes)
     else:
         net = model_arch(num_classes=num_classes)
 
@@ -153,7 +198,7 @@ for subfolder in sorted(glob(os.path.join(root, 's*'))):
         id_name=args.id_data,  # the target ID dataset
         data_root=os.path.join(ROOT_DIR, 'data'),
         config_root=os.path.join(ROOT_DIR, 'configs'),
-        preprocessor=None,  # default preprocessing
+        preprocessor=custom_preprocessor,  # None = dataset default; overridden for cross-res combos
         postprocessor_name=postprocessor_name,
         postprocessor=
         postprocessor,  # the user can pass his own postprocessor as well
