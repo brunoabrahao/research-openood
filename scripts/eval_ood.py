@@ -52,6 +52,8 @@ parser.add_argument('--save-score', action='store_true')
 parser.add_argument('--fsood', action='store_true')
 parser.add_argument('--backbone', type=str, default='resnet18',
                     choices=['resnet18', 'resnet50', 'vit', 'wrn'])
+parser.add_argument('--num-classes', type=int, default=None,
+                    help='Override num_classes (e.g. for MOS double_label)')
 parser.add_argument('--wrapper-net',
                     type=str,
                     default=None,
@@ -94,7 +96,7 @@ MODEL = {
 }
 
 try:
-    num_classes = NUM_CLASSES[args.id_data]
+    num_classes = args.num_classes or NUM_CLASSES[args.id_data]
     model_arch = MODEL[args.backbone][args.id_data]
 except KeyError:
     raise NotImplementedError(
