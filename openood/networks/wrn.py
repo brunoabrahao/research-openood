@@ -107,6 +107,7 @@ class WideResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.fc = nn.Linear(nChannels[3], num_classes)
         self.nChannels = nChannels[3]
+        self.feature_size = nChannels[3]
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -118,7 +119,7 @@ class WideResNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def forward(self, x, return_feature=False):
+    def forward(self, x, return_feature=False, return_feature_list=False):
         feature1 = self.conv1(x)
         feature2 = self.block1(feature1)
         feature3 = self.block2(feature2)
@@ -127,10 +128,12 @@ class WideResNet(nn.Module):
         out = F.avg_pool2d(feature5, 8)
         feature = out.view(-1, self.nChannels)
         logits_cls = self.fc(feature)
-        feature_list = [
-            feature, feature1, feature2, feature3, feature4, feature5
-        ]
         if return_feature:
+            return logits_cls, feature
+        elif return_feature_list:
+            feature_list = [
+                feature, feature1, feature2, feature3, feature4, feature5
+            ]
             return logits_cls, feature_list
         else:
             return logits_cls
@@ -142,6 +145,9 @@ class WideResNet(nn.Module):
         out = self.block3(out)
         out = self.relu(self.bn1(out))
         return out
+
+    def get_fc_layer(self):
+        return self.fc
 
     def feature_list(self, x):
         out_list = []
