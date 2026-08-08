@@ -1,5 +1,8 @@
+import os
 import sys
-sys.path.append('.')
+
+# Make the repo importable when this script is run from anywhere.
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # !pip install git+https://github.com/Jingkang50/OpenOOD.git
 from openood.evaluation_api import Evaluator
