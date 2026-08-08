@@ -190,8 +190,14 @@ for subfolder in sorted(glob(os.path.join(root, 's*'))):
     if args.wrapper_net is not None:
         net = eval(args.wrapper_net)(backbone=net)
 
-    net.load_state_dict(
-        torch.load(os.path.join(subfolder, 'best.ckpt'), map_location='cpu'))
+    _sd = torch.load(os.path.join(subfolder, 'best.ckpt'), map_location='cpu')
+    # Handle wrapped checkpoints: {"net": ...}, {"model_state_dict": ...}, {"state_dict": ...}
+    if isinstance(_sd, dict):
+        for wrap_key in ('net', 'model_state_dict', 'state_dict'):
+            if wrap_key in _sd and len(_sd) == 1 and isinstance(_sd[wrap_key], dict):
+                _sd = _sd[wrap_key]
+                break
+    net.load_state_dict(_sd)
     net.cuda()
     net.eval()
 
