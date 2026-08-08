@@ -3,6 +3,9 @@ from openood.utils import Config
 from .nci_postprocessor import NCIPostprocessor
 from .fdbd_postprocessor import fDBDPostprocessor
 from .ash_postprocessor import ASHPostprocessor
+from .adascale_postprocessor import AdaScalePostprocessor
+from .scale_postprocessor import ScalePostprocessor
+from .nnguide_postprocessor import NNGuidePostprocessor
 from .base_postprocessor import BasePostprocessor
 from .cider_postprocessor import CIDERPostprocessor
 from .conf_branch_postprocessor import ConfBranchPostprocessor
@@ -52,6 +55,10 @@ def get_postprocessor(config: Config):
         'nci': NCIPostprocessor,
         'fdbd': fDBDPostprocessor,
         'ash': ASHPostprocessor,
+        'adascale_a': AdaScalePostprocessor,
+        'adascale_l': AdaScalePostprocessor,
+        'scale': ScalePostprocessor,
+        'nnguide': NNGuidePostprocessor,
         'cider': CIDERPostprocessor,
         'conf_branch': ConfBranchPostprocessor,
         'msp': BasePostprocessor,
