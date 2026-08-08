@@ -33,6 +33,8 @@ class KNNPostprocessor(BasePostprocessor):
                     data = data.float()
 
                     _, feature = net(data, return_feature=True)
+                    if isinstance(feature, list):
+                        feature = feature[0]
                     activation_log.append(
                         normalizer(feature.data.cpu().numpy()))
 
@@ -46,6 +48,8 @@ class KNNPostprocessor(BasePostprocessor):
     @torch.no_grad()
     def postprocess(self, net: nn.Module, data: Any):
         output, feature = net(data, return_feature=True)
+        if isinstance(feature, list):
+            feature = feature[0]
         feature_normed = normalizer(feature.data.cpu().numpy())
         D, _ = self.index.search(
             feature_normed,
