@@ -173,3 +173,6 @@ local/
 
 # Poetry - DO NOT ignore poetry.lock
 # poetry.lock is intentionally not ignored to ensure consistent dependencies
+
+# local convenience symlink to cluster storage; machine-specific, never commit
+/results
