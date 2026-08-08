@@ -1,0 +1,12 @@
+name: cifar100_oe_places365
+
+dataset:
+  name: cifar100_oe_places365
+  split_names: [train, oe, val, test]
+  oe:
+    dataset_class: ImglistDataset
+    data_dir: ./data/images_classic/
+    imglist_pth: ./data/benchmark_imglist/cifar100/train_places365_oe.txt
+    batch_size: 256
+    shuffle: True
+    interpolation: bilinear

@@ -1,0 +1,8 @@
+network:
+  name: wrn
+  depth: 40
+  widen_factor: 2
+  num_classes: '@{dataset.num_classes}'
+  pretrained: False
+  checkpoint: none
+  num_gpus: '@{num_gpus}'
