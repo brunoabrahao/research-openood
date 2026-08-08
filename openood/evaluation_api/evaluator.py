@@ -411,6 +411,16 @@ class Evaluator:
             pred = np.concatenate([id_pred, ood_pred])
             conf = np.concatenate([id_conf, ood_conf])
             label = np.concatenate([id_gt, ood_gt])
+            # Guard against degenerate hyperparam combos that produce NaN/inf
+            # confs (e.g. ViM dim=1000 on ResNet-18 features which are 512-d:
+            # residual subspace becomes empty, alpha=inf, conf=NaN).
+            if not np.all(np.isfinite(conf)):
+                print('Hyperparam: {}, auroc: SKIPPED (non-finite conf, '
+                      'n_nan={}, n_inf={})'.format(
+                          hyperparam,
+                          int(np.isnan(conf).sum()),
+                          int(np.isinf(conf).sum())))
+                continue
             ood_metrics = compute_all_metrics(conf, label, pred)
             auroc = ood_metrics[1]
 
@@ -419,6 +429,12 @@ class Evaluator:
                 final_index = i
                 max_auroc = auroc
 
+        if final_index is None:
+            # All hyperparam combos produced non-finite confs; fall back to
+            # the first one rather than crashing downstream.
+            print('All hyperparam combos produced non-finite confs; '
+                  'falling back to first combo.')
+            final_index = 0
         self.postprocessor.set_hyperparam(hyperparam_combination[final_index])
         print('Final hyperparam: {}'.format(
             self.postprocessor.get_hyperparam()))
