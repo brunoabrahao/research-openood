@@ -9,3 +9,12 @@ trainer:
   alpha: 0.1
   beta: 1.0
   mix_op: cutmix
+
+merge_option: default
+seed: 0
+
+optimizer:
+  num_epochs: 100
+  lr: 0.1
+  weight_decay: 0.0005
+  momentum: 0.9
